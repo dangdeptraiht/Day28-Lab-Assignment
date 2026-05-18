@@ -1,0 +1,38 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "lab28-platform",
+    "title": "Lab 28 Platform Observability",
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "type": "stat",
+        "title": "API Gateway Up",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "targets": [{"expr": "up{job=\"api-gateway\"}", "refId": "A"}],
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "type": "timeseries",
+        "title": "HTTP Requests",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "targets": [{"expr": "sum(rate(http_requests_total[1m]))", "refId": "A"}],
+        "gridPos": {"h": 8, "w": 16, "x": 8, "y": 0}
+      },
+      {
+        "id": 3,
+        "type": "timeseries",
+        "title": "Request Latency",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "targets": [{"expr": "rate(http_request_duration_seconds_sum[1m]) / rate(http_request_duration_seconds_count[1m])", "refId": "A"}],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+      }
+    ]
+  },
+  "overwrite": true
+}

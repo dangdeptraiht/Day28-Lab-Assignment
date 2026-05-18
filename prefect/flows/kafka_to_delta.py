@@ -10,7 +10,7 @@ def consume_and_process():
     """Consume data from Kafka topic"""
     consumer = KafkaConsumer(
         "data.raw",
-        bootstrap_servers="kafka:9092",
+        bootstrap_servers=os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
         auto_offset_reset="earliest",
         consumer_timeout_ms=5000,
         value_deserializer=lambda m: json.loads(m.decode())
@@ -31,20 +31,16 @@ def save_to_delta(records):
     
     df = pd.DataFrame(records)
     # Giả lập Delta Lake bằng parquet (local volume)
-    path = "/opt/delta-lake/raw"
+    path = os.environ.get("DELTA_LAKE_PATH", "delta-lake/raw")
     os.makedirs(path, exist_ok=True)
-    df.to_parquet(f"{path}/batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}.parquet")
+    df.to_parquet(f"{path}/batch_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.parquet")
     print(f"Saved {len(df)} records to Delta Lake")
 
-@flow(name="Kafka to Delta Pipeline", schedule="* */5 * * *")
+@flow(name="Kafka to Delta Pipeline")
 def kafka_to_delta_flow():
     """Main flow: consume from Kafka and save to Delta Lake"""
     records = consume_and_process()
     save_to_delta(records)
 
 if __name__ == "__main__":
-    # Deploy flow to Prefect Orion
-    kafka_to_delta_flow.deploy(
-        name="kafka-to-delta",
-        work_queue_name="lab28-worker"
-    )
+    kafka_to_delta_flow()

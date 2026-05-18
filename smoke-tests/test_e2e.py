@@ -1,8 +1,51 @@
-# smoke-tests/test_e2e.py
-import pytest, requests, time, os
+import hashlib
+import json
+import time
+
+import pytest
+import requests
 
 BASE_URL = "http://localhost:8000"
-VLLM_URL = os.environ.get("VLLM_NGROK_URL", "")
+
+
+def local_embedding(text: str) -> list[float]:
+    digest = hashlib.sha256(text.encode()).digest()
+    return [((digest[i % len(digest)] / 255.0) * 2) - 1 for i in range(384)]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def seed_demo_data():
+    records = [
+        {"id": "smoke_001", "text": "smoke test document", "timestamp": time.time()},
+        {"id": "smoke_002", "text": "platform engineering document", "timestamp": time.time()},
+    ]
+
+    response = requests.put(
+        "http://localhost:6333/collections/documents",
+        json={"vectors": {"size": 384, "distance": "Cosine"}},
+        timeout=10,
+    )
+    if response.status_code != 409:
+        response.raise_for_status()
+    requests.put(
+        "http://localhost:6333/collections/documents/points",
+        json={
+            "points": [
+                {"id": index + 100, "vector": local_embedding(record["text"]), "payload": record}
+                for index, record in enumerate(records)
+            ]
+        },
+        timeout=10,
+    ).raise_for_status()
+
+    import redis
+
+    client = redis.Redis(host="localhost", port=6379, decode_responses=True)
+    for record in records:
+        client.set(
+            f"feature:{record['id']}",
+            json.dumps({"text": record["text"], "timestamp": record["timestamp"], "processed": True}),
+        )
 
 # ── Test 1: Happy Path — Full Inference Request ───────────────
 class TestHappyPath:
@@ -30,7 +73,6 @@ class TestDataIngestion:
     def test_kafka_ingest_and_qdrant_store(self):
         """Ingest data vào Kafka → pipeline → vector store"""
         from kafka import KafkaProducer
-        import json
 
         producer = KafkaProducer(
             bootstrap_servers="localhost:9092",

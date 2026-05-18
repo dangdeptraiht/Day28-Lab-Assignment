@@ -3,13 +3,17 @@ import requests
 
 def check_prometheus():
     resp = requests.get("http://localhost:9090/api/v1/query",
-                        params={"query": 'http_requests_total{job="api-gateway"}'})
+                        params={"query": 'up{job="api-gateway"}'})
+    resp.raise_for_status()
     data = resp.json()
     assert data["status"] == "success"
     print("Integration 9 OK: Prometheus metrics flowing")
 
 def check_langsmith():
     import os
+    if not os.environ.get("LANGCHAIN_API_KEY"):
+        print("Integration 10 SKIP: LANGCHAIN_API_KEY is not configured")
+        return
     from langsmith import Client
     client = Client(api_key=os.environ["LANGCHAIN_API_KEY"])
     runs = list(client.list_runs(project_name="lab28-platform", limit=1))

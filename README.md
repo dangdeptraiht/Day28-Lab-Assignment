@@ -46,6 +46,14 @@ docker compose ps  # Kiểm tra tất cả services Up
 - Prometheus: http://localhost:9090
 - API Gateway: http://localhost:8000
 
+### 1.1. Seed dữ liệu demo local
+
+Stack có thể chạy ở chế độ local fallback nếu chưa có Kaggle/vLLM URL. Seed Qdrant và Redis trước khi chạy smoke tests:
+
+```bash
+python scripts/00_seed_demo_data.py
+```
+
 ### 2. Setup Kaggle GPU
 
 Tạo Kaggle Notebook với GPU T4 x2, chọn 1 trong 2 option:
@@ -290,8 +298,10 @@ cp .env.example .env
 ```bash
 cd prefect/flows
 pip install -r requirements.txt
-python kafka_to_delta.py
+PREFECT_API_URL=http://localhost:4200/api python kafka_to_delta.py
 ```
+
+Lệnh trên chạy flow một lần, ghi run vào Prefect UI, và chuyển dữ liệu từ Kafka sang `delta-lake/raw`. Nếu muốn chạy định kỳ, mở Prefect UI và tạo schedule 5 phút cho flow `Kafka to Delta Pipeline`.
 
 ### 5. Ingest Data vào Kafka
 
@@ -303,6 +313,7 @@ python scripts/01_ingest_to_kafka.py
 ### 6. Chạy Smoke Tests
 
 ```bash
+python scripts/00_seed_demo_data.py
 pytest smoke-tests/ -v
 ```
 

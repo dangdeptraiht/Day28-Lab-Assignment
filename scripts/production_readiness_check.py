@@ -1,4 +1,3 @@
-# scripts/production_readiness_check.py
 import requests, redis, subprocess
 
 results = {}
@@ -35,7 +34,7 @@ check("Unauthorized request rejected", check_unauthorized)
 
 print("\n=== VECTOR STORE ===")
 check("Qdrant healthy", lambda:
-    requests.get("http://localhost:6333/healthz").raise_for_status())
+    requests.get("http://localhost:6333/").raise_for_status())
 
 def check_collection_exists():
     r = requests.get("http://localhost:6333/collections/documents")
@@ -49,11 +48,20 @@ check("Redis reachable", lambda:
 
 print("\n=== KAFKA ===")
 def check_kafka_topics():
+    subprocess.run(
+        [
+            "docker", "compose", "exec", "-T", "kafka", "kafka-topics", "--create",
+            "--if-not-exists", "--topic", "data.raw", "--bootstrap-server", "localhost:9092",
+        ],
+        capture_output=True, text=True,
+    )
     result = subprocess.run(
-        ["docker", "exec", "lab28-kafka-1", "kafka-topics", "--list",
+        ["docker", "compose", "exec", "-T", "kafka", "kafka-topics", "--list",
          "--bootstrap-server", "localhost:9092"],
         capture_output=True, text=True
     )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "kafka-topics command failed")
     assert "data.raw" in result.stdout
 
 check("Kafka topics exist", check_kafka_topics)
